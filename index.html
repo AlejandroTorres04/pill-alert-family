@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Pill Alert Family</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1F6F6B">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PillAlert">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg: #F3F8F6; --bg-elevated: #FFFFFF; --ink: #163533; --ink-soft: #4C6A67; --line: #DCE9E6;
+    --primary: #1F6F6B; --primary-dark: #14504C; --primary-tint: #E3F1EE;
+    --accent: #B4436C; --accent-tint: #F8E7ED;
+    --ok: #2E9E5B; --ok-tint: #E4F5EA; --warn: #D9A62B; --warn-tint: #FBF1D8; --late: #D1495B; --late-tint: #FAE4E7;
+    --radius-lg: 22px; --radius-md: 14px; --radius-sm: 9px;
+    --shadow: 0 8px 24px rgba(20,60,55,0.08);
+    --font-display: 'Quicksand', sans-serif; --font-body: 'Inter', sans-serif;
+  }
+  [data-theme="dark"]{
+    --bg: #0E201F; --bg-elevated: #16302E; --ink: #EAF5F2; --ink-soft: #9FC1BC; --line: #22423F;
+    --primary: #4FBDB2; --primary-dark: #6ED4C8; --primary-tint: #17332F;
+    --accent: #E290AC; --accent-tint: #33202A;
+    --ok: #6BCB8F; --ok-tint: #16311F; --warn: #E8C25B; --warn-tint: #362B12; --late: #E8828D; --late-tint: #3A1C20;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);font-family:var(--font-body);color:var(--ink);
+    display:flex;justify-content:center;min-height:100vh;transition:background .25s,color .25s;}
+  .phone{width:100%;max-width:430px;min-height:100vh;background:var(--bg);position:relative;display:flex;flex-direction:column;}
+  h1,h2,h3,.display{font-family:var(--font-display);}
+  button{font-family:var(--font-body);cursor:pointer;}
+  .screen{flex:1;padding:20px 18px 100px;overflow-y:auto;}
+  .hidden{display:none !important;}
+  .topbar{padding:22px 18px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .topbar .greet{font-size:22px;font-weight:700;font-family:var(--font-display);}
+  .topbar .sub{font-size:14px;color:var(--ink-soft);margin-top:2px;}
+  .topbar-icons{display:flex;gap:8px;}
+  .icon-btn{width:42px;height:42px;border-radius:50%;border:none;background:var(--bg-elevated);
+    box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;font-size:18px;position:relative;}
+  .badge-dot{position:absolute;top:-2px;right:-2px;background:var(--late);color:#fff;font-size:10px;
+    border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+  .ring-wrap{display:flex;justify-content:center;margin:6px 0 18px;}
+  .ring-center-label{font-family:var(--font-display);font-weight:700;font-size:15px;fill:var(--ink);}
+  .ring-center-sub{font-size:11px;fill:var(--ink-soft);}
+  .card{background:var(--bg-elevated);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow);
+    margin-bottom:14px;border:1px solid var(--line);}
+  .section-title{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);
+    text-transform:uppercase;margin:22px 0 10px;font-family:var(--font-display);}
+  .dose-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);}
+  .dose-row:last-child{border-bottom:none;}
+  .dose-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .dose-dot.ok{background:var(--ok);} .dose-dot.warn{background:var(--warn);} .dose-dot.late{background:var(--late);}
+  .dose-main{flex:1;min-width:0;}
+  .dose-name{font-weight:700;font-size:16px;}
+  .dose-meta{font-size:13px;color:var(--ink-soft);margin-top:1px;}
+  .dose-time{font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--ink-soft);white-space:nowrap;}
+  .dose-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .pill-btn{border:none;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:600;}
+  .pill-btn.primary{background:var(--primary);color:#fff;}
+  .pill-btn.ghost{background:var(--primary-tint);color:var(--primary-dark);}
+  .pill-btn.danger{background:var(--late-tint);color:var(--late);}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;}
+  .badge.ok{background:var(--ok-tint);color:var(--ok);}
+  .badge.warn{background:var(--warn-tint);color:var(--warn);}
+  .badge.late{background:var(--late-tint);color:var(--late);}
+  .tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
+    background:var(--bg-elevated);border-top:1px solid var(--line);display:flex;padding:8px 4px 14px;
+    box-shadow:0 -4px 18px rgba(0,0,0,0.06);z-index:20;}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
+    color:var(--ink-soft);font-size:11px;font-weight:600;padding:6px 0;border-radius:12px;}
+  .tab.active{color:var(--primary);}
+  .tab .ticon{font-size:20px;}
+  .member-card{display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg-elevated);
+    border-radius:var(--radius-md);box-shadow:var(--shadow);margin-bottom:12px;border:1px solid var(--line);}
+  .avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:24px;background:var(--primary-tint);flex-shrink:0;}
+  .member-name{font-weight:700;font-size:17px;}
+  .member-meta{font-size:13px;color:var(--ink-soft);}
+  .chip{display:inline-block;font-size:11px;background:var(--accent-tint);color:var(--accent);
+    padding:2px 8px;border-radius:999px;margin:3px 4px 0 0;}
+  .fab{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
+    display:flex;justify-content:flex-end;padding:0 20px;pointer-events:none;z-index:15;}
+  .fab button{pointer-events:all;width:58px;height:58px;border-radius:50%;background:var(--primary);
+    color:#fff;border:none;font-size:26px;box-shadow:0 10px 26px rgba(31,111,107,0.4);}
+  .btn-full{width:100%;padding:15px;border-radius:var(--radius-md);border:none;background:var(--primary);
+    color:#fff;font-weight:700;font-size:16px;}
+  .btn-full.secondary{background:var(--primary-tint);color:var(--primary-dark);}
+  label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin:12px 0 5px;}
+  input,select,textarea{width:100%;padding:12px 13px;border-radius:var(--radius-sm);border:1.5px solid var(--line);
+    background:var(--bg);color:var(--ink);font-size:15px;font-family:var(--font-body);}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);border-color:var(--primary);}
+  .row2{display:flex;gap:10px;} .row2>div{flex:1;}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);}
+  .switch{width:46px;height:26px;border-radius:999px;background:var(--line);position:relative;border:none;flex-shrink:0;}
+  .switch.on{background:var(--primary);}
+  .switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s;}
+  .switch.on::after{left:23px;}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(10,25,24,0.5);display:flex;align-items:flex-end;
+    justify-content:center;z-index:50;}
+  .modal-backdrop.hidden{display:none;}
+  .modal{width:100%;max-width:430px;max-height:88vh;overflow-y:auto;background:var(--bg-elevated);
+    border-radius:22px 22px 0 0;padding:20px 20px 30px;position:relative;}
+  .modal-handle{width:40px;height:5px;background:var(--line);border-radius:99px;margin:0 auto 14px;}
+  .modal h2{margin:0 0 4px;font-size:20px;}
+  .close-x{position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;color:var(--ink-soft);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;}
+  .cal-dow{font-size:11px;color:var(--ink-soft);font-weight:700;padding-bottom:6px;}
+  .cal-day{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;font-size:13px;font-weight:600;background:var(--bg);border:1px solid var(--line);gap:3px;}
+  .cal-day.today{border-color:var(--primary);color:var(--primary);}
+  .cal-day.selected{background:var(--primary);color:#fff;}
+  .cal-dots{display:flex;gap:2px;}
+  .cal-dots span{width:4px;height:4px;border-radius:50%;}
+  .stat-row{margin-bottom:14px;}
+  .stat-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;}
+  .stat-track{height:10px;background:var(--line);border-radius:99px;overflow:hidden;}
+  .stat-fill{height:100%;border-radius:99px;background:var(--primary);}
+  .login-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;}
+  .login-logo{width:78px;height:78px;border-radius:24px;background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:38px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .pin-dots{display:flex;gap:14px;margin:22px 0;}
+  .pin-dots span{width:14px;height:14px;border-radius:50%;background:var(--line);}
+  .pin-dots span.filled{background:var(--primary);}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;max-width:280px;}
+  .keypad button{padding:18px 0;border-radius:16px;border:1px solid var(--line);background:var(--bg-elevated);
+    font-size:20px;font-weight:600;color:var(--ink);}
+  .who-list{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;margin-top:10px;}
+  .who-btn{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;border:1.5px solid var(--line);
+    background:var(--bg-elevated);font-size:16px;font-weight:600;color:var(--ink);text-align:left;}
+  .who-btn .av{width:38px;height:38px;border-radius:50%;background:var(--primary-tint);display:flex;
+    align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .empty{text-align:center;color:var(--ink-soft);font-size:14px;padding:30px 10px;}
+  input[type="search"]{margin-bottom:12px;}
+  .filter-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;}
+  .filter-chip{white-space:nowrap;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);
+    background:var(--bg-elevated);font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;}
+  .alert-item{padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;}
+  .alert-item:last-child{border-bottom:none;}
+  .alert-time{font-size:11px;color:var(--ink-soft);margin-top:3px;}
+  .note-banner{background:var(--warn-tint);color:#7a5c12;border-radius:var(--radius-md);padding:12px 14px;
+    font-size:12.5px;margin-bottom:14px;line-height:1.4;}
+  [data-theme="dark"] .note-banner{color:var(--warn);}
+</style>
+</head>
+<body>
+<div class="phone" id="phone">
+
+  <div class="login-screen" id="loginScreen">
+    <div class="login-logo">💊</div>
+    <h1 class="display" style="margin:0 0 4px;font-size:24px;">Pill Alert Family</h1>
+    <div id="setupNotice" class="hidden" style="max-width:320px;">
+      <div class="note-banner" style="text-align:left;">
+        <b>Falta configurar la base de datos.</b><br><br>
+        Esta app ya no depende de Claude — usa una base de datos gratis en Firebase para que todos (desde cualquier navegador) vean lo mismo. Sigue estos pasos una sola vez:<br><br>
+        1. Ve a <b>console.firebase.google.com</b> y crea un proyecto gratis.<br>
+        2. En el menú, entra a <b>Firestore Database</b> → "Crear base de datos" → modo de prueba.<br>
+        3. Ve a ⚙️ <b>Configuración del proyecto → Tus apps → Agregar app web</b> y copia el objeto <code>firebaseConfig</code>.<br>
+        4. Pega esos valores en el archivo HTML, en la constante <code>firebaseConfig</code> (cerca del inicio del &lt;script&gt;), reemplazando los textos "TU_...".<br>
+        5. Guarda el archivo y compártelo con tu familia — ya todos verán los mismos datos en tiempo real, sin pasar por Claude.
+      </div>
+    </div>
+    <div id="loginPickWrap">
+      <p style="color:var(--ink-soft);margin:6px 0 4px;font-size:14px;">¿Quién eres?</p>
+      <div class="who-list" id="whoList"></div>
+      <button class="pill-btn ghost" style="margin-top:14px;" onclick="showNewPersonForm()">+ Soy nuevo, agregarme</button>
+    </div>
+    <div id="loginPinWrap" class="hidden" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+      <p style="color:var(--ink-soft);margin:4px 0;font-size:14px;" id="pinPromptText">Ingresa tu PIN</p>
+      <div class="pin-dots" id="pinDots"></div>
+      <div class="keypad" id="keypad"></div>
+      <button class="pill-btn ghost" style="margin-top:16px;" onclick="backToPick()">‹ Volver</button>
+    </div>
+    <div id="loginNewWrap" class="hidden" style="width:100%;max-width:300px;text-align:left;">
+      <label>Tu nombre</label><input id="np_name" placeholder="Ej. Ana Martínez">
+      <label>Crea un PIN de 4 dígitos</label><input id="np_pin" maxlength="4" inputmode="numeric" placeholder="1234">
+      <button class="btn-full" style="margin-top:16px;" onclick="createNewPerson()">Entrar</button>
+      <button class="pill-btn ghost" style="margin-top:10px;width:100%;" onclick="backToPick()">‹ Volver</button>
+    </div>
+  </div>
+
+  <div id="appRoot" class="hidden" style="display:flex;flex-direction:column;flex:1;">
+    <div class="topbar">
+      <div>
+        <div class="greet" id="greetText">Hola 👋</div>
+        <div class="sub" id="dateText"></div>
+      </div>
+      <div class="topbar-icons">
+        <button class="icon-btn" onclick="openAlertsModal()">🔔<span class="badge-dot hidden" id="bellBadge">0</span></button>
+        <button class="icon-btn" onclick="toggleTheme()">🌗</button>
+      </div>
+    </div>
+
+    <div class="screen" id="screenInicio"></div>
+    <div class="screen hidden" id="screenFamilia"></div>
+    <div class="screen hidden" id="screenMedicamentos"></div>
+    <div class="screen hidden" id="screenCalendario"></div>
+    <div class="screen hidden" id="screenMas"></div>
+
+    <div class="fab hidden" id="fabAddMed"><button onclick="openMedModal()">+</button></div>
+
+    <div class="tabbar">
+      <button class="tab active" data-tab="inicio" onclick="switchTab('inicio')"><span class="ticon">🏠</span>Inicio</button>
+      <button class="tab" data-tab="familia" onclick="switchTab('familia')"><span class="ticon">👪</span>Familia</button>
+      <button class="tab" data-tab="medicamentos" onclick="switchTab('medicamentos')"><span class="ticon">💊</span>Medicinas</button>
+      <button class="tab" data-tab="calendario" onclick="switchTab('calendario')"><span class="ticon">📅</span>Calendario</button>
+      <button class="tab" data-tab="mas" onclick="switchTab('mas')"><span class="ticon">⚙️</span>Más</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* ==================== BASE DE DATOS COMPARTIDA (Firebase Firestore) ==================== */
+// 1) Crea un proyecto gratis en https://console.firebase.google.com
+// 2) Activa Firestore Database (modo de prueba)
+// 3) Copia aquí tu firebaseConfig (Configuración del proyecto → Tus apps → app web)
+const firebaseConfig = {
+  apiKey: "AIzaSyAeL4sIuuixcziq49OrDKEA0P4WmTOdOYE",
+  authDomain: "pill-alert-family.firebaseapp.com",
+  projectId: "pill-alert-family",
+  storageBucket: "pill-alert-family.firebasestorage.app",
+  messagingSenderId: "310888753519",
+  appId: "1:310888753519:web:61c0f57be4b0e32dfa609a"
+};
+const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "TU_API_KEY";
+let db = null;
+if(FIREBASE_CONFIGURED){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+}
+
+const KEYS = { members:'members', meds:'meds', doseLog:'doseLog', alerts:'alerts' };
+const COLLECTION = 'pillAlertFamily';
+
+async function sGet(key){
+  if(!db) return null;
+  try{ const snap = await db.collection(COLLECTION).doc(key).get(); return snap.exists ? JSON.parse(snap.data().data) : null; }
+  catch(e){ console.error('Firestore read error', e); return null; }
+}
+async function sSet(key, val){
+  if(!db) return;
+  try{ await db.collection(COLLECTION).doc(key).set({data: JSON.stringify(val)}); }
+  catch(e){ console.error('Firestore write error', e); }
+}
+function liveListen(key, onChange){
+  if(!db) return;
+  db.collection(COLLECTION).doc(key).onSnapshot(snap=>{
+    if(snap.exists){ onChange(JSON.parse(snap.data().data)); }
+  }, err=> console.error('Firestore listen error', err));
+}
+
+let members = [], meds = [], doseLog = {}, alerts = [];
+let currentUser = null, pendingLoginMember = null, pin = '';
+let theme='light', currentTab='inicio', selectedMemberId=null;
+let medFilter = { person:'all', text:'' };
+let selectedCalDate = new Date();
+let lastSeenAlerts = 0;
+const today = new Date();
+
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function calcAge(birthISO){
+  const b = new Date(birthISO); const t = new Date();
+  let age = t.getFullYear()-b.getFullYear();
+  if (t.getMonth()<b.getMonth() || (t.getMonth()===b.getMonth() && t.getDate()<b.getDate())) age--;
+  return age;
+}
+
+function isAdmin(){ return !!currentUser && currentUser.role === 'Administrador'; }
+// Garantiza que "Alejandro" sea siempre el único Administrador; a cualquier otro que tuviera ese rol lo baja a Familiar
+function normalizeAdminRoles(arr){
+  return arr.map(m=>{
+    const isAlejandro = m.name.trim().toLowerCase() === 'alejandro';
+    if(isAlejandro) return {...m, role:'Administrador'};
+    if(m.role==='Administrador') return {...m, role:'Familiar'};
+    return m;
+  });
+}
+
+function defaultMembers(){
+  return [
+    {id:0, name:'Alejandro', emoji:'🧑‍💼', birth:'1985-01-01', conditions:[], allergies:[], emergency:'', pin:'1234', role:'Administrador'},
+    {id:1, name:'Rosa Martínez', emoji:'👵', birth:'1954-03-12', conditions:['Hipertensión'], allergies:['Penicilina'], emergency:'Luis Martínez · 33-1234-5678', pin:'1234', role:'Familiar'},
+    {id:2, name:'Luis Martínez', emoji:'👨', birth:'1980-07-22', conditions:[], allergies:[], emergency:'', pin:'1234', role:'Familiar'},
+    {id:3, name:'Sofía Martínez', emoji:'👧', birth:'2014-11-02', conditions:['Asma'], allergies:['Frutos secos'], emergency:'Luis Martínez · 33-1234-5678', pin:'1234', role:'Familiar'},
+  ];
+}
+function defaultMeds(){
+  return [
+    {id:1, memberId:1, name:'Losartán', active:'Losartán potásico', form:'Tableta', dose:50, unit:'mg', times:['08:00','20:00'], startDate:'2026-01-10', endDate:'', withFood:true, notes:'Tomar con el desayuno y la cena', doctor:'Dr. Ibarra'},
+    {id:2, memberId:1, name:'Metformina', active:'Metformina', form:'Tableta', dose:850, unit:'mg', times:['08:00'], startDate:'2026-02-01', endDate:'', withFood:true, notes:'', doctor:'Dr. Ibarra'},
+    {id:3, memberId:3, name:'Salbutamol', active:'Salbutamol', form:'Inhalador', dose:2, unit:'gotas', times:['07:30','19:30'], startDate:'2026-06-01', endDate:'', withFood:false, notes:'Solo si hay silbido al respirar', doctor:'Dra. Campos'},
+    {id:4, memberId:2, name:'Vitamina D', active:'Colecalciferol', form:'Cápsula', dose:1, unit:'cápsulas', times:['09:00'], startDate:'2026-05-01', endDate:'', withFood:true, notes:'', doctor:''},
+  ];
+}
+
+async function initApp(){
+  if(!FIREBASE_CONFIGURED){
+    document.getElementById('setupNotice').classList.remove('hidden');
+    document.getElementById('loginPickWrap').classList.add('hidden');
+    return;
+  }
+  members = await sGet(KEYS.members);
+  if(!members){ members = defaultMembers(); await sSet(KEYS.members, members); }
+  const normalized = normalizeAdminRoles(members);
+  if(JSON.stringify(normalized) !== JSON.stringify(members)){ members = normalized; await sSet(KEYS.members, members); }
+  else { members = normalized; }
+  meds = await sGet(KEYS.meds);
+  if(!meds){ meds = defaultMeds(); await sSet(KEYS.meds, meds); }
+  doseLog = await sGet(KEYS.doseLog) || {};
+  alerts = await sGet(KEYS.alerts) || [];
+  renderWhoList();
+
+  // Tiempo real: cualquier cambio de cualquier persona, en cualquier navegador, se refleja al instante
+  liveListen(KEYS.members, data=>{ members = normalizeAdminRoles(data); if(!currentUser) renderWhoList(); else renderScreen(currentTab); });
+  liveListen(KEYS.meds, data=>{ meds = data; if(currentUser) renderScreen(currentTab); });
+  liveListen(KEYS.doseLog, data=>{ doseLog = data; if(currentUser){ checkLateDoses(); renderScreen(currentTab); } });
+  liveListen(KEYS.alerts, handleAlertsUpdate);
+}
+initApp();
+
+/* ==================== LOGIN ==================== */
+function renderWhoList(){
+  document.getElementById('whoList').innerHTML = members.map(m =>
+    `<button class="who-btn" onclick="pickMember(${m.id})"><span class="av">${m.emoji}</span>${m.name} <span style="margin-left:auto;color:var(--ink-soft);font-weight:400;font-size:12px;">${m.role}</span></button>`
+  ).join('');
+}
+function pickMember(id){
+  pendingLoginMember = members.find(m=>m.id===id);
+  pin=''; document.getElementById('pinPromptText').textContent = `PIN de ${pendingLoginMember.name.split(' ')[0]}`;
+  document.getElementById('loginPickWrap').classList.add('hidden');
+  document.getElementById('loginPinWrap').classList.remove('hidden');
+  renderKeypad(); renderPinDots();
+}
+function backToPick(){
+  document.getElementById('loginPickWrap').classList.remove('hidden');
+  document.getElementById('loginPinWrap').classList.add('hidden');
+  document.getElementById('loginNewWrap').classList.add('hidden');
+}
+function showNewPersonForm(){
+  document.getElementById('loginPickWrap').classList.add('hidden');
+  document.getElementById('loginNewWrap').classList.remove('hidden');
+}
+async function createNewPerson(){
+  const name = document.getElementById('np_name').value.trim();
+  const npin = document.getElementById('np_pin').value.trim();
+  if(!name || npin.length!==4){ alert('Escribe tu nombre y un PIN de 4 dígitos.'); return; }
+  const member = {id:Date.now(), name, emoji:'🙂', birth:'2000-01-01', conditions:[], allergies:[], emergency:'', pin:npin, role:'Familiar'};
+  members.push(member);
+  await sSet(KEYS.members, members);
+  currentUser = member;
+  enterApp();
+}
+function renderKeypad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  document.getElementById('keypad').innerHTML = keys.map(k=> k===''? '<span></span>' : `<button onclick="pressKey('${k}')">${k}</button>`).join('');
+}
+function renderPinDots(){
+  document.getElementById('pinDots').innerHTML = [0,1,2,3].map(i=>`<span class="${i<pin.length?'filled':''}"></span>`).join('');
+}
+function pressKey(k){
+  if(k==='⌫'){ pin = pin.slice(0,-1); } else if(pin.length<4){ pin += k; }
+  renderPinDots();
+  if(pin.length===4){
+    setTimeout(()=>{
+      if(pin === pendingLoginMember.pin){ currentUser = pendingLoginMember; enterApp(); }
+      else { pin=''; renderPinDots(); alert('PIN incorrecto, intenta de nuevo.'); }
+    }, 150);
+  }
+}
+function enterApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appRoot').classList.remove('hidden');
+  document.getElementById('greetText').textContent = 'Hola, ' + currentUser.name.split(' ')[0] + ' 👋';
+  document.getElementById('dateText').textContent = today.toLocaleDateString('es-MX',{weekday:'long', day:'numeric', month:'long'});
+  lastSeenAlerts = alerts.length;
+  if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+  setInterval(()=>{ if(currentUser) checkLateDoses(); }, 30000); // revisa retrasos cada 30s mientras la app esté abierta
+  renderAll();
+}
+
+/* ==================== SINCRONIZACIÓN / ALERTAS ==================== */
+async function pushAlert(text){
+  alerts.unshift({id:Date.now()+Math.random(), text, at:new Date().toISOString()});
+  alerts = alerts.slice(0,60);
+  await sSet(KEYS.alerts, alerts);
+}
+const LATE_THRESHOLD_MIN = 2; // minutos tras la hora programada para considerar "retrasado" y alertar
+
+function doseState(time, status){
+  if(status==='taken') return 'ok';
+  const now = new Date(); const [h,m] = time.split(':').map(Number);
+  const doseTime = new Date(); doseTime.setHours(h,m,0,0);
+  const diffMin = (now - doseTime)/60000;
+  if(status==='skipped') return 'late';
+  if(diffMin > LATE_THRESHOLD_MIN) return 'late';
+  return 'warn';
+}
+function buildTodayDoses(){
+  const list = [];
+  meds.forEach(med=> med.times.forEach(t=>{
+    const key = med.id+'_'+t;
+    if(!doseLog[key]) doseLog[key] = {status:'pending'};
+    list.push({med, time:t, key, status:doseLog[key].status});
+  }));
+  list.sort((a,b)=> a.time.localeCompare(b.time));
+  return list;
+}
+async function checkLateDoses(){
+  const doses = buildTodayDoses();
+  let changed = false;
+  for(const d of doses){
+    const st = doseState(d.time, d.status);
+    if(st==='late' && d.status==='pending' && !(doseLog[d.key]||{}).alerted){
+      const member = members.find(m=>m.id===d.med.memberId);
+      await pushAlert(`⏰ ${member.name} no ha confirmado ${d.med.name} de las ${d.time} (más de ${LATE_THRESHOLD_MIN} min de retraso).`);
+      doseLog[d.key] = {...(doseLog[d.key]||{status:'pending'}), alerted:true};
+      changed = true;
+    }
+  }
+  if(changed) await sSet(KEYS.doseLog, doseLog);
+}
+let knownAlertIds = new Set();
+let alertsInitialized = false;
+function showSystemNotification(text){
+  if('Notification' in window && Notification.permission==='granted'){
+    try{ new Notification('Pill Alert Family', {body:text, icon:'icon-192.png'}); } catch(e){ console.error(e); }
+  }
+}
+function handleAlertsUpdate(data){
+  alerts = data;
+  if(!alertsInitialized){
+    // primera carga: no notificar por alertas ya existentes
+    alerts.forEach(a=> knownAlertIds.add(a.id));
+    alertsInitialized = true;
+  } else {
+    alerts.forEach(a=>{
+      if(!knownAlertIds.has(a.id)){
+        knownAlertIds.add(a.id);
+        showSystemNotification(a.text);
+      }
+    });
+  }
+  updateBellBadge();
+}
+function updateBellBadge(){
+  const unseen = alerts.length - lastSeenAlerts;
+  const b = document.getElementById('bellBadge');
+  if(!b) return;
+  if(unseen > 0){ b.textContent = Math.min(unseen,9); b.classList.remove('hidden'); } else { b.classList.add('hidden'); }
+}
+function openAlertsModal(){
+  lastSeenAlerts = alerts.length;
+  document.getElementById('modalBody').innerHTML = `
+    <button class="close-x" onclick="closeModal()">✕</button>
+    <div class="modal-handle"></div>
+    <h2>Alertas familiares</h2>
+    <div class="note-banner">Estas alertas se sincronizan en tiempo real entre todos los que tengan la app abierta, en cualquier navegador. No son notificaciones push del sistema operativo: si alguien tiene el navegador cerrado, no le va a sonar el teléfono, pero en cuanto lo abra verá todo actualizado.</div>
+    ${alerts.length ? alerts.map(a=>`<div class="alert-item">${a.text}<div class="alert-time">${new Date(a.at).toLocaleString('es-MX',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})}</div></div>`).join('') : '<div class="empty">Sin alertas por ahora</div>'}
+  `;
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+  updateBellBadge();
+}
+
+/* ==================== TEMA / NAV ==================== */
+function toggleTheme(){ theme = theme==='light'?'dark':'light'; document.documentElement.setAttribute('data-theme', theme); }
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===tab));
+  ['inicio','familia','medicamentos','calendario','mas'].forEach(s=>{
+    document.getElementById('screen'+s.charAt(0).toUpperCase()+s.slice(1)).classList.toggle('hidden', s!==tab);
+  });
+  document.getElementById('fabAddMed').classList.toggle('hidden', tab!=='medicamentos');
+  renderScreen(tab);
+}
+function renderAll(){ renderScreen('inicio'); }
+function renderScreen(tab){
+  if(tab==='inicio') renderInicio();
+  if(tab==='familia') renderFamilia();
+  if(tab==='medicamentos') renderMedicamentos();
+  if(tab==='calendario') renderCalendario();
+  if(tab==='mas') renderMas();
+}
+
+/* ==================== INICIO + ANILLO ==================== */
+function ringSVG(doses){
+  const R=92, C=110; const now=new Date(); const nowFrac=(now.getHours()+now.getMinutes()/60)/24;
+  let arcs='';
+  doses.forEach(d=>{
+    const [h,m] = d.time.split(':').map(Number); const frac=(h+m/60)/24;
+    const angle = frac*360-90; const rad=angle*Math.PI/180;
+    const x=C+R*Math.cos(rad), y=C+R*Math.sin(rad);
+    const st = doseState(d.time, d.status);
+    const color = st==='ok'?'var(--ok)':st==='late'?'var(--late)':'var(--warn)';
+    arcs += `<circle cx="${x}" cy="${y}" r="9" fill="${color}" stroke="var(--bg-elevated)" stroke-width="2.5"/>`;
+  });
+  const nowAngle = nowFrac*360-90; const nowRad = nowAngle*Math.PI/180;
+  const nx=C+(R+16)*Math.cos(nowRad), ny=C+(R+16)*Math.sin(nowRad);
+  return `<svg width="220" height="220" viewBox="0 0 220 220">
+    <circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="var(--line)" stroke-width="14"/>
+    <line x1="${C}" y1="${C}" x2="${nx}" y2="${ny}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="2 3"/>
+    ${arcs}
+    <text x="${C}" y="${C-6}" text-anchor="middle" class="ring-center-label">Hoy</text>
+    <text x="${C}" y="${C+12}" text-anchor="middle" class="ring-center-sub">${doses.filter(d=>d.status==='taken').length}/${doses.length} tomadas</text>
+  </svg>`;
+}
+function renderInicio(){
+  const doses = buildTodayDoses();
+  const pending = doses.filter(d=>d.status!=='taken');
+  const taken = doses.filter(d=>d.status==='taken');
+  document.getElementById('screenInicio').innerHTML = `
+    <div class="ring-wrap">${ringSVG(doses)}</div>
+    <div class="section-title">Pendientes de hoy</div>
+    ${pending.length? pending.map(doseRowHTML).join('') : '<div class="empty">🎉 No hay dosis pendientes por ahora</div>'}
+    ${taken.length? `<div class="section-title">Ya tomadas</div>${taken.map(doseRowHTML).join('')}` : ''}
+  `;
+}
+function doseRowHTML(d){
+  const member = members.find(m=>m.id===d.med.memberId);
+  const st = doseState(d.time, d.status);
+  const label = st==='ok'?'Tomado':st==='late'?'Retrasado':'Próximo';
+  const actions = d.status==='taken' ? '' : `
+    <div class="dose-actions">
+      <button class="pill-btn primary" onclick="markDose('${d.key}','taken')">Marcar tomado</button>
+      <button class="pill-btn ghost" onclick="snoozeDose('${d.key}')">Posponer 5 min</button>
+      <button class="pill-btn ghost" onclick="snoozeDose('${d.key}')">Posponer 15 min</button>
+      <button class="pill-btn danger" onclick="markDose('${d.key}','skipped')">Omitir</button>
+    </div>`;
+  return `<div class="card">
+    <div class="dose-row" style="border:none;padding:0;">
+      <div class="dose-dot ${st}"></div>
+      <div class="dose-main">
+        <div class="dose-name">${d.med.name} <span style="font-weight:400;color:var(--ink-soft);font-size:13px;">· ${member.name.split(' ')[0]}</span></div>
+        <div class="dose-meta">${d.med.dose} ${d.med.unit} · ${d.med.form}${d.med.withFood?' · con alimentos':''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="dose-time">${d.time}</div>
+        <span class="badge ${st}">${label}</span>
+      </div>
+    </div>${actions}
+  </div>`;
+}
+async function markDose(key, status){
+  doseLog[key] = {status, by: currentUser.name, at:new Date().toISOString()};
+  await sSet(KEYS.doseLog, doseLog);
+  if(status==='skipped'){
+    const [medIdStr, time] = key.split('_');
+    const med = meds.find(m=> String(m.id)===medIdStr);
+    const member = members.find(m=>m.id===med.memberId);
+    await pushAlert(`⚠️ ${member.name} omitió/rechazó su dosis de ${med.name} de las ${time}.`);
+  }
+  updateBellBadge();
+  renderScreen(currentTab);
+}
+function snoozeDose(key){ renderScreen(currentTab); }
+
+/* ==================== FAMILIA ==================== */
+function renderFamilia(){
+  document.getElementById('screenFamilia').innerHTML = `
+    <div class="section-title">Grupo familiar</div>
+    ${members.map(m=>`
+      <div class="member-card" onclick="openMemberProfile(${m.id})">
+        <div class="avatar">${m.emoji}</div>
+        <div style="flex:1;">
+          <div class="member-name">${m.name}${currentUser.id===m.id?' <span style="color:var(--primary);font-size:12px;">(tú)</span>':''}</div>
+          <div class="member-meta">${calcAge(m.birth)} años · ${m.role}</div>
+          <div>${m.conditions.map(c=>`<span class="chip">${c}</span>`).join('')}${m.allergies.map(a=>`<span class="chip">⚠ ${a}</span>`).join('')}</div>
+        </div>
+        <div style="color:var(--ink-soft);">›</div>
+      </div>
+    `).join('')}
+    <button class="btn-full secondary" style="margin-top:8px;" onclick="openMemberModal()">+ Agregar familiar</button>
+  `;
+}
+function openMemberProfile(id){
+  selectedMemberId = id;
+  const m = members.find(x=>x.id===id);
+  const memMeds = meds.filter(x=>x.memberId===id);
+  document.getElementById('screenFamilia').innerHTML = `
+    <button class="pill-btn ghost" onclick="renderFamilia()">← Volver</button>
+    <div class="card" style="text-align:center;margin-top:14px;">
+      <div class="avatar" style="width:72px;height:72px;font-size:34px;margin:0 auto 10px;">${m.emoji}</div>
+      <div class="member-name" style="font-size:19px;">${m.name}</div>
+      <div class="member-meta">${calcAge(m.birth)} años · ${m.role}</div>
+      <div style="margin-top:8px;">${m.conditions.map(c=>`<span class="chip">${c}</span>`).join('')}${m.allergies.map(a=>`<span class="chip">⚠ ${a}</span>`).join('')}</div>
+      ${m.emergency? `<div class="dose-meta" style="margin-top:10px;">📞 ${m.emergency}</div>`:''}
+    </div>
+    <div class="section-title">Medicamentos de ${m.name.split(' ')[0]}</div>
+    ${memMeds.length? memMeds.map(medCardHTML).join('') : '<div class="empty">Sin medicamentos registrados</div>'}
+    <button class="btn-full secondary" style="margin-top:8px;" onclick="openMedModal(null, ${id})">+ Agregar medicamento</button>
+    ${isAdmin() && m.id!==currentUser.id ? `<button class="btn-full" style="margin-top:10px;background:var(--late);" onclick="deleteMember(${id})">Eliminar perfil</button>` : ''}
+  `;
+}
+async function deleteMember(id){
+  const m = members.find(x=>x.id===id);
+  if(!confirm(`¿Seguro que quieres eliminar el perfil de ${m.name}? También se borrarán sus medicamentos.`)) return;
+  members = members.filter(x=>x.id!==id);
+  meds = meds.filter(x=>x.memberId!==id);
+  await sSet(KEYS.members, members);
+  await sSet(KEYS.meds, meds);
+  renderFamilia();
+}
+
+/* ==================== MEDICAMENTOS ==================== */
+function medCardHTML(med){
+  const member = members.find(m=>m.id===med.memberId);
+  return `<div class="card" onclick="openMedModal(${med.id})" style="cursor:pointer;">
+    <div style="display:flex;justify-content:space-between;">
+      <div>
+        <div class="dose-name">${med.name}</div>
+        <div class="dose-meta">${member.name.split(' ')[0]} · ${med.dose}${med.unit} · ${med.form}</div>
+        <div class="dose-meta">Horarios: ${med.times.join(', ')}</div>
+      </div>
+      <div style="color:var(--ink-soft);">✎</div>
+    </div>
+  </div>`;
+}
+function renderMedicamentos(){
+  let list = meds.filter(m=>{
+    if(medFilter.person!=='all' && m.memberId!==Number(medFilter.person)) return false;
+    if(medFilter.text && !m.name.toLowerCase().includes(medFilter.text.toLowerCase())) return false;
+    return true;
+  });
+  document.getElementById('screenMedicamentos').innerHTML = `
+    <input type="search" placeholder="Buscar medicamento…" value="${medFilter.text}" oninput="medFilter.text=this.value; renderMedicamentos()">
+    <div class="filter-row">
+      <button class="filter-chip ${medFilter.person==='all'?'active':''}" onclick="medFilter.person='all'; renderMedicamentos()">Todos</button>
+      ${members.map(m=>`<button class="filter-chip ${medFilter.person==String(m.id)?'active':''}" onclick="medFilter.person='${m.id}'; renderMedicamentos()">${m.name.split(' ')[0]}</button>`).join('')}
+    </div>
+    ${list.length? list.map(medCardHTML).join('') : '<div class="empty">No se encontraron medicamentos</div>'}
+  `;
+}
+function openMedModal(medId, presetMemberId){
+  const editing = medId ? meds.find(m=>m.id===medId) : null;
+  const memberOptions = members.map(m=>`<option value="${m.id}" ${((editing&&editing.memberId===m.id)||presetMemberId===m.id)?'selected':''}>${m.name}</option>`).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <button class="close-x" onclick="closeModal()">✕</button>
+    <div class="modal-handle"></div>
+    <h2>${editing?'Editar medicamento':'Agregar medicamento'}</h2>
+    <label>Integrante</label><select id="f_member">${memberOptions}</select>
+    <label>Nombre comercial</label><input id="f_name" value="${editing?editing.name:''}" placeholder="Ej. Losartán">
+    <label>Principio activo</label><input id="f_active" value="${editing?editing.active:''}" placeholder="Ej. Losartán potásico">
+    <div class="row2">
+      <div><label>Presentación</label><select id="f_form">${['Tableta','Cápsula','Jarabe','Gotas','Inyección','Crema','Inhalador'].map(f=>`<option ${editing&&editing.form===f?'selected':''}>${f}</option>`).join('')}</select></div>
+      <div><label>Dosis</label><input id="f_dose" type="number" value="${editing?editing.dose:''}"></div>
+    </div>
+    <label>Unidad</label><select id="f_unit">${['mg','ml','gotas','cápsulas','unidades'].map(u=>`<option ${editing&&editing.unit===u?'selected':''}>${u}</option>`).join('')}</select>
+    <label>Horarios (separados por coma, HH:MM)</label><input id="f_times" value="${editing?editing.times.join(', '):''}" placeholder="08:00, 20:00">
+    <div class="row2">
+      <div><label>Fecha de inicio</label><input id="f_start" type="date" value="${editing?editing.startDate:isoDate(new Date())}"></div>
+      <div><label>Fecha fin (opcional)</label><input id="f_end" type="date" value="${editing?editing.endDate:''}"></div>
+    </div>
+    <div class="switch-row"><span>Tomar con alimentos</span><button class="switch ${editing&&editing.withFood?'on':''}" id="f_food" onclick="this.classList.toggle('on')"></button></div>
+    <label>Médico que lo recetó (opcional)</label><input id="f_doctor" value="${editing?editing.doctor:''}">
+    <label>Notas / indicaciones</label><textarea id="f_notes" rows="2">${editing?editing.notes:''}</textarea>
+    <button class="btn-full" style="margin-top:18px;" onclick="saveMed(${medId||'null'})">${editing?'Guardar cambios':'Agregar medicamento'}</button>
+    ${editing?`<button class="btn-full secondary" style="margin-top:10px;" onclick="deleteMed(${medId})">Eliminar medicamento</button>`:''}
+  `;
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+async function saveMed(medId){
+  const times = document.getElementById('f_times').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const data = {
+    memberId: Number(document.getElementById('f_member').value),
+    name: document.getElementById('f_name').value || 'Sin nombre',
+    active: document.getElementById('f_active').value,
+    form: document.getElementById('f_form').value,
+    dose: Number(document.getElementById('f_dose').value) || 0,
+    unit: document.getElementById('f_unit').value,
+    times: times.length?times:['08:00'],
+    startDate: document.getElementById('f_start').value,
+    endDate: document.getElementById('f_end').value,
+    withFood: document.getElementById('f_food').classList.contains('on'),
+    doctor: document.getElementById('f_doctor').value,
+    notes: document.getElementById('f_notes').value,
+  };
+  if(medId){ Object.assign(meds.find(m=>m.id===medId), data); } else { meds.push({id: Date.now(), ...data}); }
+  await sSet(KEYS.meds, meds);
+  closeModal(); renderScreen(currentTab);
+}
+async function deleteMed(medId){
+  meds = meds.filter(m=>m.id!==medId);
+  await sSet(KEYS.meds, meds);
+  closeModal(); renderScreen(currentTab);
+}
+function openMemberModal(){
+  document.getElementById('modalBody').innerHTML = `
+    <button class="close-x" onclick="closeModal()">✕</button>
+    <div class="modal-handle"></div>
+    <h2>Agregar familiar</h2>
+    <label>Nombre</label><input id="m_name" placeholder="Nombre completo">
+    <label>PIN de acceso (4 dígitos)</label><input id="m_pin" maxlength="4" inputmode="numeric" placeholder="1234">
+    <label>Rol</label><select id="m_role"><option>Familiar</option><option>Cuidador</option><option>Administrador</option></select>
+    <label>Fecha de nacimiento</label><input id="m_birth" type="date">
+    <label>Enfermedades / condiciones (opcional, separadas por coma)</label><input id="m_cond">
+    <label>Alergias (opcional, separadas por coma)</label><input id="m_allergy">
+    <label>Contacto de emergencia (opcional)</label><input id="m_emg" placeholder="Nombre · teléfono">
+    <button class="btn-full" style="margin-top:18px;" onclick="saveMember()">Agregar familiar</button>
+  `;
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+async function saveMember(){
+  const name = document.getElementById('m_name').value || 'Sin nombre';
+  const mpin = document.getElementById('m_pin').value.trim() || '1234';
+  members.push({
+    id: Date.now(), name, emoji:'🙂',
+    birth: document.getElementById('m_birth').value || '2000-01-01',
+    conditions: document.getElementById('m_cond').value.split(',').map(s=>s.trim()).filter(Boolean),
+    allergies: document.getElementById('m_allergy').value.split(',').map(s=>s.trim()).filter(Boolean),
+    emergency: document.getElementById('m_emg').value,
+    pin: mpin, role: document.getElementById('m_role').value,
+  });
+  await sSet(KEYS.members, members);
+  closeModal(); renderFamilia();
+}
+function closeModal(){ document.getElementById('modalBackdrop').classList.add('hidden'); }
+
+/* ==================== CALENDARIO ==================== */
+function renderCalendario(){
+  const y = selectedCalDate.getFullYear(), m = selectedCalDate.getMonth();
+  const first = new Date(y,m,1); const startOffset = (first.getDay()+6)%7;
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const monthName = selectedCalDate.toLocaleDateString('es-MX',{month:'long', year:'numeric'});
+  let cells = '';
+  for(let i=0;i<startOffset;i++) cells += '<div></div>';
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(y,m,d); const iso = isoDate(dateObj);
+    const isToday = iso===isoDate(today);
+    const isSelected = iso===isoDate(selectedCalDate) && selectedCalDate.getDate()===d;
+    const activeMeds = meds.filter(med=> med.startDate<=iso && (!med.endDate || med.endDate>=iso));
+    const dots = activeMeds.slice(0,3).map(()=>`<span style="background:var(--primary)"></span>`).join('');
+    cells += `<div class="cal-day ${isToday?'today':''} ${isSelected?'selected':''}" onclick="pickCalDay(${d})">${d}<div class="cal-dots">${dots}</div></div>`;
+  }
+  const iso = isoDate(selectedCalDate);
+  const dayMeds = meds.filter(med=> med.startDate<=iso && (!med.endDate || med.endDate>=iso));
+  document.getElementById('screenCalendario').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <button class="pill-btn ghost" onclick="shiftMonth(-1)">‹</button>
+      <div style="font-weight:700;text-transform:capitalize;">${monthName}</div>
+      <button class="pill-btn ghost" onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="cal-grid">${['L','M','X','J','V','S','D'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div>
+    <div class="section-title">Medicamentos el ${selectedCalDate.toLocaleDateString('es-MX',{day:'numeric',month:'long'})}</div>
+    ${dayMeds.length? dayMeds.map(med=>{
+      const member = members.find(mm=>mm.id===med.memberId);
+      return `<div class="card"><div class="dose-name">${med.name} <span style="font-weight:400;color:var(--ink-soft);font-size:13px;">· ${member.name.split(' ')[0]}</span></div><div class="dose-meta">Horarios: ${med.times.join(', ')}</div></div>`;
+    }).join('') : '<div class="empty">Sin medicamentos programados este día</div>'}
+  `;
+}
+function shiftMonth(delta){ selectedCalDate = new Date(selectedCalDate.getFullYear(), selectedCalDate.getMonth()+delta, 1); renderCalendario(); }
+function pickCalDay(d){ selectedCalDate = new Date(selectedCalDate.getFullYear(), selectedCalDate.getMonth(), d); renderCalendario(); }
+
+/* ==================== MÁS ==================== */
+function renderMas(){
+  const compliance = members.map(m=>{
+    const memMeds = meds.filter(x=>x.memberId===m.id);
+    const total = memMeds.reduce((a,mm)=>a+mm.times.length,0) || 1;
+    const taken = memMeds.reduce((a,mm)=> a + mm.times.filter(t=> doseLog[mm.id+'_'+t] && doseLog[mm.id+'_'+t].status==='taken').length, 0);
+    const pct = total>1||taken>0 ? Math.round((taken/total)*100) : 0;
+    return {m, pct};
+  });
+  document.getElementById('screenMas').innerHTML = `
+    <div class="note-banner">Sesión iniciada como <b>${currentUser.name}</b> (${currentUser.role}). Los datos se sincronizan en tiempo real con cualquier navegador que abra este mismo archivo, sin pasar por Claude.</div>
+    <div class="section-title">Cumplimiento de hoy</div>
+    <div class="card">${compliance.map(c=>`
+      <div class="stat-row"><div class="stat-top"><span>${c.m.name}</span><span>${c.pct}%</span></div>
+      <div class="stat-track"><div class="stat-fill" style="width:${c.pct}%; background:${c.pct>=80?'var(--ok)':c.pct>=50?'var(--warn)':'var(--late)'}"></div></div></div>`).join('')}
+    </div>
+    <div class="section-title">Reportes</div>
+    <div class="card">
+      <div class="dose-meta" style="margin-bottom:10px;">Genera un PDF con historial, cumplimiento y dosis omitidas.</div>
+      <button class="btn-full secondary" onclick="alert('En la versión completa, esto generaría y descargaría un PDF con el historial detallado.')">Generar reporte PDF</button>
+    </div>
+    <div class="section-title">Alertas familiares</div>
+    <div class="card">
+      <div class="dose-meta" style="margin-bottom:10px;">${alerts.length} alertas registradas en total.</div>
+      <button class="btn-full secondary" onclick="openAlertsModal()">Ver alertas</button>
+    </div>
+    <div class="section-title">Seguridad</div>
+    <div class="card">
+      <div class="switch-row"><span>Bloqueo con PIN</span><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+      <div class="switch-row"><span>Huella / Face ID</span><button class="switch" onclick="this.classList.toggle('on')"></button></div>
+      <div class="switch-row" style="border-bottom:none;"><span>Copias de seguridad en la nube</span><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+    </div>
+    <div class="section-title">Preferencias</div>
+    <div class="card">
+      <div class="switch-row"><span>Modo oscuro</span><button class="switch ${theme==='dark'?'on':''}" onclick="toggleTheme(); this.classList.toggle('on')"></button></div>
+      <div class="switch-row" style="border-bottom:none;"><span>Idioma</span><select style="width:auto;"><option>Español</option><option>English</option></select></div>
+    </div>
+    <div class="section-title">Mi perfil</div>
+    <div class="member-card" style="cursor:default;">
+      <div class="avatar">${currentUser.emoji}</div>
+      <div><div class="member-name">${currentUser.name}</div><div class="member-meta">Rol: ${currentUser.role}</div></div>
+    </div>
+    <button class="btn-full secondary" style="margin-top:14px;" onclick="location.reload()">Cerrar sesión</button>
+  `;
+}
+
+document.documentElement.setAttribute('data-theme','light');
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js').catch(e=>console.error(e)));
+}
+</script>
+</body>
+</html>
