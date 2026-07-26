@@ -14,6 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <style>
   :root{
     --bg: #F3F8F6; --bg-elevated: #FFFFFF; --ink: #163533; --ink-soft: #4C6A67; --line: #DCE9E6;
@@ -235,13 +236,16 @@ const firebaseConfig = {
   appId: "1:310888753519:web:61c0f57be4b0e32dfa609a"
 };
 const FIREBASE_CONFIGURED = firebaseConfig.apiKey !== "TU_API_KEY";
+const VAPID_KEY = "BB9ap17doZh_T22SFN1obTLrhllVQtQ79_bOlDahk3S0-cVn1P-NUR5VJBH8Gl-tVRWrIlsdsl0NUHSqaAUMfac";
 let db = null;
+let messaging = null;
 if(FIREBASE_CONFIGURED){
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
+  try{ messaging = firebase.messaging(); } catch(e){ console.error('Messaging no disponible', e); }
 }
 
-const KEYS = { members:'members', meds:'meds', doseLog:'doseLog', alerts:'alerts' };
+const KEYS = { members:'members', meds:'meds', doseLog:'doseLog', alerts:'alerts', tokens:'fcmTokens' };
 const COLLECTION = 'pillAlertFamily';
 
 async function sGet(key){
@@ -379,13 +383,35 @@ function pressKey(k){
     }, 150);
   }
 }
+async function registerPushToken(){
+  if(!messaging || !currentUser) return;
+  try{
+    const swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    const token = await messaging.getToken({vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg});
+    if(token){
+      const tokens = await sGet(KEYS.tokens) || {};
+      tokens[currentUser.id] = token;
+      await sSet(KEYS.tokens, tokens);
+    }
+  } catch(e){ console.error('Error registrando token push', e); }
+}
+if(messaging){
+  messaging.onMessage(payload=>{
+    const text = (payload.notification && payload.notification.body) || (payload.data && payload.data.body) || 'Tienes una alerta nueva';
+    showSystemNotification(text);
+  });
+}
+
 function enterApp(){
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('appRoot').classList.remove('hidden');
   document.getElementById('greetText').textContent = 'Hola, ' + currentUser.name.split(' ')[0] + ' 👋';
   document.getElementById('dateText').textContent = today.toLocaleDateString('es-MX',{weekday:'long', day:'numeric', month:'long'});
   lastSeenAlerts = alerts.length;
-  if('Notification' in window && Notification.permission==='default'){ Notification.requestPermission(); }
+  if('Notification' in window){
+    if(Notification.permission==='granted'){ registerPushToken(); }
+    else if(Notification.permission==='default'){ Notification.requestPermission().then(perm=>{ if(perm==='granted') registerPushToken(); }); }
+  }
   setInterval(()=>{ if(currentUser) checkLateDoses(); }, 30000); // revisa retrasos cada 30s mientras la app esté abierta
   renderAll();
 }
