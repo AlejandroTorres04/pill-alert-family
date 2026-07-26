@@ -393,7 +393,10 @@ async function registerPushToken(){
       tokens[currentUser.id] = token;
       await sSet(KEYS.tokens, tokens);
     }
-  } catch(e){ console.error('Error registrando token push', e); }
+  } catch(e){
+    console.error('Error registrando token push', e);
+    alert('No se pudo activar notificaciones push: ' + (e && e.message ? e.message : e));
+  }
 }
 if(messaging){
   messaging.onMessage(payload=>{
