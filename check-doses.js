@@ -35,15 +35,20 @@ async function main() {
   let changedLog = false;
   let changedAlerts = false;
 
+  console.log('Hora del servidor (México):', now.toString());
+  console.log('Medicamentos encontrados:', meds.length);
+
   for (const med of meds) {
     for (const time of med.times) {
       const key = med.id + '_' + time;
       const entry = doseLog[key] || { status: 'pending' };
-      if (entry.status === 'taken') continue;
 
       const [h, m] = time.split(':').map(Number);
       const doseTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
       const diffMin = (now - doseTime) / 60000;
+      console.log(`- ${med.name} (${time}) status=${entry.status} alerted=${!!entry.alerted} diffMin=${diffMin.toFixed(1)}`);
+
+      if (entry.status === 'taken') continue;
       const isLateOrSkipped = entry.status === 'skipped' || diffMin > LATE_THRESHOLD_MIN;
 
       // diffMin > -60 evita alertar por dosis de horas futuras del día
