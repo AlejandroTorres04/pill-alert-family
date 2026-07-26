@@ -17,6 +17,13 @@ async function setDoc(key, val) {
   await db.collection(COLLECTION).doc(key).set({ data: JSON.stringify(val) });
 }
 
+function nowInMexico() {
+  // El servidor de GitHub Actions corre en UTC; esto convierte "ahora" a la hora real de México
+  const now = new Date();
+  const mxString = now.toLocaleString('en-US', { timeZone: 'America/Mexico_City' });
+  return new Date(mxString);
+}
+
 async function main() {
   const members = (await getDoc('members')) || [];
   const meds = (await getDoc('meds')) || [];
@@ -24,7 +31,7 @@ async function main() {
   let alerts = (await getDoc('alerts')) || [];
   const tokens = (await getDoc('fcmTokens')) || {};
 
-  const now = new Date();
+  const now = nowInMexico();
   let changedLog = false;
   let changedAlerts = false;
 
