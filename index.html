@@ -386,7 +386,7 @@ function pressKey(k){
 async function registerPushToken(){
   if(!messaging || !currentUser) return;
   try{
-    const swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    const swReg = await navigator.serviceWorker.ready; // reutiliza el único service worker ya registrado
     const token = await messaging.getToken({vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg});
     if(token){
       const tokens = await sGet(KEYS.tokens) || {};
